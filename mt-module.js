@@ -111,7 +111,8 @@
     /**
      * Current available attributes for the <script> tag are:
      * @param [entry] path to the initial JS file. needs to start with a "/" in most cases.
-     * @param [debug] entering "true" (string) will enable debug logs in console
+     * @param [debug] entering "true" (string) will enable debug logs in console, defaults to false
+     * @param {waitForDom} entering "false" (string) will skip waiting for window.onload, defaults to true
      */
     var attributes = document.currentScript.attributes;
 
@@ -130,10 +131,24 @@
         return;
     }
 
+    // handle whether to wait for dom ready, defaults to yes
+    var waitAttribute = attributes.getNamedItem("waitForDom");
+    var wait = !(!!waitAttribute && waitAttribute.value === "false");
+    console.mt_module_debug("#MT-Module: Waiting for dom:", wait);
+
     // start the entry file
-    console.mt_module_debug("#MT-Module starting to load modules, entry point is", entryScript);
-    loadModule(entryScript);
-    console.mt_module_debug("#MT-Module: Initial call loaded the following modules:", loadedModules);
+    var startFunc = function(){
+        console.mt_module_debug("#MT-Module starting to load modules, entry point is", entryScript);
+        loadModule(entryScript);
+        console.mt_module_debug("#MT-Module: Initial call loaded the following modules:", loadedModules);
+    };
+
+    // start the execution either right away or only after window.onload occurs
+    if (wait) window.onload = startFunc;
+    else startFunc();
+
+
+
 
 })();
 

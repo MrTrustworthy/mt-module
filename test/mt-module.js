@@ -53,13 +53,13 @@
     };
 
 
-    var loadNewModule = function loadNewModule(fileUrl, requestFunc) {
+    var loadNewModule = function loadNewModule(fileUrl, requireFunc) {
 
         // Fetch the file we need
         var fileContent = fetchFile(fileUrl);
 
         // Setting the context variables we need in the evaluated JS File.
-        var request = requestFunc;
+        var require = requireFunc;
         var module = {
             name: fileUrl,
             exports: {}
@@ -68,15 +68,15 @@
         // Unset some scope variables that we don't want to expose in the eval-call.
         // Why the FUCK is "let" not yet a thing???
         fileUrl = null;
-        requestFunc = null;
+        requireFunc = null;
 
-        // We 'eval()' the loaded file and pass request, module and module.exports (as exports)
+        // We 'eval()' the loaded file and pass require, module and module.exports (as exports)
         // into the scope of the execution.
         // The eval'd file will modify the given module-object, which we return as the modules "result"/export
         // This (should/does ?) make it compatible with nodejs-modules.
-        (function (request, module, exports) {
+        (function (require, module, exports) {
             eval(fileContent);
-        })(request, module, module.exports);
+        })(require, module, module.exports);
 
         return module;
     };
@@ -84,7 +84,7 @@
     /**
      * Takes a fileURL to a module, loads the module, caches it and returns it to the caller.
      * This function gets used to load the entry-file, but it also gets passed into the modules
-     * as the "request()"-function to load the dependencies of that file.
+     * as the "require()"-function to load the dependencies of that file.
      * If a required module is already cached, it will return the cached module instead of loading it again.
      *
      * @param fileUrl: URL to the file, something like "/js/utils/helper.js"

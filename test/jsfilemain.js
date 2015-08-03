@@ -1,18 +1,18 @@
 
 
 console.log("#MAIN_ENTRY: Entry JS Test file initializing!");
-console.log("#MAIN_ENTRY: Request defined?", typeof request === 'function', "/ also with requestFunc?", !!requestFunc);
+console.log("#MAIN_ENTRY: Request defined?", typeof require === 'function', "/ also with requireFunc?", !!requireFunc);
 console.log("#MAIN_ENTRY: module defined?", !!module);
 console.log("#MAIN_ENTRY: modulename defined?", !!module.name, "/ also with fileUrl?", !!fileUrl);
 
 console.log("#MAIN_ENTRY: Loading external file now!");
-var file1Exports = request("/jsfile1.js");
+var file1Exports = require("/jsfile1.js");
 console.log("#MAIN_ENTRY: exports of first test file is:", file1Exports);
 
 console.log("#MAIN_ENTRY: -------------------------------------");
 
 console.log("#MAIN_ENTRY: Loading second external file now, this should already be there!");
-var file2Exports = request("/jsfile2.js");
+var file2Exports = require("/jsfile2.js");
 console.log("#MAIN_ENTRY: exports of second test file is:", file2Exports);
 
 console.log("MAIN_ENTRY: those two objects should be the same:", file1Exports.otherExport, "and", file2Exports);

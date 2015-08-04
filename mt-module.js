@@ -1,4 +1,5 @@
 (function () {
+    'use strict';
 
     /**
      * This variable contains all "module"-objects from all the files that have been loaded so far.
@@ -53,30 +54,32 @@
     };
 
 
-    var loadNewModule = function loadNewModule(fileUrl, requireFunc) {
+    /**
+     * Loads a module that has not already been cached.
+     * This loads the files content and evaluates it with a function constructor, passing in request and module
+     *
+     * @param fileUrl - Url to the file to be loaded
+     * @returns {{name: *, exports: {}}}
+     */
+    var loadNewModule = function loadNewModule(fileUrl) {
 
         // Fetch the file we need
         var fileContent = fetchFile(fileUrl);
 
-        // Setting the context variables we need in the evaluated JS File.
-        var require = requireFunc;
+        // Creating the "Module" Object we pass into the loaded module to declare exports off
         var module = {
             name: fileUrl,
             exports: {}
         };
 
-        // Unset some scope variables that we don't want to expose in the eval-call.
-        // Why the FUCK is "let" not yet a thing???
-        fileUrl = null;
-        requireFunc = null;
+        // Add sourcemapping
+        fileContent += ("\r\n//# sourceURL=" + fileUrl);
 
-        // We 'eval()' the loaded file and pass require, module and module.exports (as exports)
+        // We eval the loaded file via a Function constructor and pass require, module and module.exports (as exports)
         // into the scope of the execution.
         // The eval'd file will modify the given module-object, which we return as the modules "result"/export
-        // This (should/does ?) make it compatible with nodejs-modules.
-        (function (require, module, exports) {
-            eval(fileContent);
-        })(require, module, module.exports);
+        // This (should/does ?) make it compatible with commonjs/node-modules.
+        (new Function("require", "module", "exports", fileContent))(loadModule, module, module.exports);
 
         return module;
     };
@@ -90,7 +93,7 @@
      * @param fileUrl: URL to the file, something like "/js/utils/helper.js"
      * @returns {Object} the given Modules "exports" object.
      */
-    var loadModule = function loadFile(fileUrl) {
+    var loadModule = function loadModule(fileUrl) {
 
         if (!!loadedModules[fileUrl]) { // If the file is already loaded and cached, return the cached version
             console.mt_module_debug("#MT-Module: we already have the module", fileUrl, "loaded, serving it now");
@@ -98,7 +101,7 @@
 
         } else { // If the module has not yet been loaded, load and cache it before returning the result
             console.mt_module_debug("#MT-Module: loading new module", fileUrl, "now");
-            var module = loadNewModule(fileUrl, loadModule);
+            var module = loadNewModule(fileUrl);
             loadedModules[fileUrl] = module;
             return module.exports;
         }
@@ -117,13 +120,13 @@
     var attributes = document.currentScript.attributes;
 
 
-    // handle debug tag
+    // handle debug tag, default is false
     var debugAttribute = attributes.getNamedItem("debug");
     var debug = !!(!!debugAttribute && debugAttribute.value === "true");
     setDebug(debug);
     console.mt_module_debug("#MT-Module: Set to Debug");
 
-    // handle the entry file url
+    // handle the entry file url, mandatory parameter
     var entryScriptAttribute = attributes.getNamedItem("entry");
     var entryScript = (!!entryScriptAttribute && entryScriptAttribute.value);
     if (!entryScript) {
@@ -151,4 +154,3 @@
 
 
 })();
-

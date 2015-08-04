@@ -72,7 +72,7 @@
             exports: {}
         };
 
-        // Add sourcemapping
+        // Add sourcemapping so we can debug the loaded files
         fileContent += ("\r\n//# sourceURL=" + fileUrl);
 
         // We eval the loaded file via a Function constructor and pass require, module and module.exports (as exports)

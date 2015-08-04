@@ -1,9 +1,13 @@
 
 
 console.log("#MAIN_ENTRY: Entry JS Test file initializing!");
-console.log("#MAIN_ENTRY: Request defined?", typeof require === 'function', "/ also with requireFunc?", !!requireFunc);
+console.log("#MAIN_ENTRY: Can see following Variables:");
+console.log("#MAIN_ENTRY: Request defined?", typeof require === 'function', "/ also with requireFunc?", (typeof requireFunc !== "undefined"&& !!requireFunc));
 console.log("#MAIN_ENTRY: module defined?", !!module);
-console.log("#MAIN_ENTRY: modulename defined?", !!module.name, "/ also with fileUrl?", !!fileUrl);
+console.log("#MAIN_ENTRY: modulename defined?", !!module.name, "/ also with fileUrl?", (typeof fileUrl !== "undefined" && !!fileUrl));
+console.log("#MAIN_ENTRY: fileContent:", (typeof fileContent !== "undefined" && !!fileContent));
+console.log("#MAIN_ENTRY: loadModule Function:", (typeof loadModule !== "undefined" && !!loadModule));
+console.log("#MAIN_ENTRY: loadedModules Cache:", (typeof loadedModules !== "undefined" && !!loadedModules));
 
 console.log("#MAIN_ENTRY: Loading external file now!");
 var file1Exports = require("/jsfile1.js");

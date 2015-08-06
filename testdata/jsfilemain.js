@@ -10,13 +10,13 @@ console.log("#MAIN_ENTRY: loadModule Function:", (typeof loadModule !== "undefin
 console.log("#MAIN_ENTRY: loadedModules Cache:", (typeof loadedModules !== "undefined" && !!loadedModules));
 
 console.log("#MAIN_ENTRY: Loading external file now!");
-var file1Exports = require("/jsfile1.js");
+var file1Exports = require("jsfile1");
 console.log("#MAIN_ENTRY: exports of first test file is:", file1Exports);
 
 console.log("#MAIN_ENTRY: -------------------------------------");
 
 console.log("#MAIN_ENTRY: Loading second external file now, this should already be there!");
-var file2Exports = require("/jsfile2.js");
+var file2Exports = require("jsfile2");
 console.log("#MAIN_ENTRY: exports of second test file is:", file2Exports);
 
 console.log("MAIN_ENTRY: those two objects should be the same:", file1Exports.otherExport, "and", file2Exports);

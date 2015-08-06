@@ -1,0 +1,1 @@
+console.log("#TEST4: Starting jsfile4.js now!");

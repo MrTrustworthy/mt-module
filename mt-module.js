@@ -5,7 +5,7 @@
      * This variable contains all "module"-objects from all the files that have been loaded so far.
      * If a module has loaded, it is saved here in the format FileURL -> "module"-object
      *
-     * loadedModules["helper"] = {
+     * loadedModules["/js/utils/helper.js"] = {
      *      name: "helper",
      *      path: "/js/utils/",
      *      URI: "/js/utils/helper.js",
@@ -58,54 +58,103 @@
     /**
      * Generates a URI-Info object based on the supplied nodeURL-string and the calling modules "module"-object
      *
-     * @param nodeURI String describing the modules location relative to the caller, like "../test/mymodule"
+     * @param moduleIdentifier String describing the modules location relative to the caller, like "../test/mymodule"
      * @param callingModule "module"-object of the calling module that provides the context info needed to create a URI
      * @returns {{name: string, path: Array, URI: string}}
      */
-    var getURIInfo = function getURIInfo(nodeURI, callingModule){
+    var getModuleInformation = function getModuleInformation(moduleIdentifier, callingModule){
 
-        var uriParts = nodeURI.split("/");
+        // we operate from the base path of the calling module
+        var basePath = callingModule.path.slice(0);
+
+        var uriParts = moduleIdentifier.split("/");
 
         // Last part of the uri is the module name
         var moduleName = uriParts.pop();
 
         // Path is an array containing strings
         // to get the absolute path, we combine the path of the caller with the path of the called module
-        var path = callingModule.path.concat(uriParts);
-        var URI = path.join("/") + "/" + moduleName + ".js";
+        var path = null;
+
+        // rules for the first "term" of the uri are:
+        // #1: "somestring" -> this means absolute path (relative to the loaders location)
+        // #2: "." -> Basically ignore it, this means relative to the calling modules location
+        // #3: ".." -> this means relative to the calling module minus one folder
+
+        // treat uri's starting with "/" the same as uri's starting with "some/path/name"
+        if(uriParts[0] === "") uriParts.shift();
+
+        // #1: ignore callers path when resolving absolute uri
+        if(uriParts[0] !== "." && uriParts[0] !== "..") path = uriParts;
+        else path = callingModule.path.concat(uriParts);
+
+
+        // #2: filter out the "."-terms
+        var i = path.indexOf(".");
+        while(i !== -1){
+            path.splice(i, 1);
+            i = path.indexOf(".");
+        }
+
+        // #3: if possible, filter out the ".."-terms that are not at the first position and the path segment before
+        // to get always the same URI for a module regardless of the callers basepath.
+        // info: we use lastIndex to avoid errors in paths like "../some/path/../file"
+        i = path.lastIndexOf("..");
+        while(i > 0){
+            path.splice(i-1, 2);
+            i = path.lastIndexOf("..");
+        }
+
+        var uri = path.join("/") + "/" + moduleName + ".js";
 
         return {
-            name: moduleName,
+            id: moduleName,
             path: path,
-            URI: URI
+            uri: uri,
+            exports: {}
         };
     };
+
+
+
+    (function(){
+        //#1
+
+        var a = getModuleInformation("./a/b/c", {path: []});
+        console.log("###A", a, "::", a.uri === "a/b/c.js");
+
+        var a2 = getModuleInformation("./a/b/c", {path: ["x"]});
+        console.log("###A", a2, "::", a2.uri === "x/a/b/c.js");
+
+        var b = getModuleInformation("../a/b/c", {path: ["x", "y", "z"]});
+        console.log("###A", b, "::", b.uri === "x/y/a/b/c.js");
+
+        var c = getModuleInformation("some/a/b/c", {path: ["x", "y", "z"]});
+        console.log("###A", c, "::", c.uri === "some/a/b/c.js");
+
+        var d = getModuleInformation("../a/b/../c", {path: ["x", "y", "z"]});
+        console.log("###A", d, "::", d.uri === "x/y/a/c.js");
+    })();
+
+
+
 
 
     /**
      * Loads a module that has not already been cached.
      * This loads the files content and evaluates it with a function constructor, passing in request and module
      *
-     * @param uriInfo - An info object containing the module name, path and URI of the module to load
-     * @returns {{name: string, path: (Array.<string>), URI: (string), exports: {}}}
+     * @param uriInfo - An info object containing the module name, path and uri of the module to load
+     * @returns {{name: string, path: (Array.<string>), uri: (string), exports: {}}}
      */
-    var loadNewModule = function loadNewModule(uriInfo) {
-
-
-        // Creating the "Module" Object we pass into the loaded module to declare exports off
-        var module = {
-            name: uriInfo.name,
-            path: uriInfo.path.slice(0), // FIXME do we even need to copy?
-            URI: uriInfo.URI,
-            exports: {}
-        };
+    var loadNewModule = function loadNewModule(module) {
 
         // Fetch the file we need
-        var fileContent = fetchFile(module.URI);
+        var fileContent = fetchFile(module.uri);
         // Add sourcemapping so we can debug the loaded files
-        fileContent += ("\r\n//# sourceURL=" + module.URI);
+        fileContent += ("\r\n//# sourceURL=" + module.uri);
 
-        // so this is a neat little trick we are going to use... by binding the "require"-function that we pass into
+        // so this is a neat little effect we are going to use... by binding the "require"-function that we pass into
         // the module we load to the module-objects context, we can access that modules path when "require()" is called
         // and resolve dependencies relative to the modules location
         var requireFunc = loadModule.bind(module);
@@ -120,7 +169,7 @@
     };
 
     /**
-     * Takes a nodeURI to a module, loads the module, caches it and returns it to the caller.
+     * Takes a moduleIdentifier to a module, loads the module, caches it and returns it to the caller.
      * This function gets used to load the entry-file, but it also gets passed into the modules
      * as the "require()"-function to load the dependencies of that file.
      * If a required module is already cached, it will return the cached module instead of loading it again.
@@ -128,32 +177,35 @@
      * @NOTE The "this" context of this function is the "module"-object of the module that calls "require()" or,
      *          if the module is the entry-module, a stub context with empty values
      *
-     * @param nodeURI: node-style identifier of the module, like "utils/helper" for "utils/helper.js"
+     * @param moduleIdentifier: node-style identifier of the module, like "utils/helper" for "utils/helper.js"
      * @returns {Object} the given Modules "exports" object.
      */
-    var loadModule = function loadModule(nodeURI) {
+    var loadModule = function loadModule(moduleIdentifier) {
 
         console.mt_module_debug("#MT-Module: calling 'require()' from this module:", this);
 
-        // first we need to get all the module URI information we need to properly describe the module
-        // based on the string that gets supplied to "require()" (nodeURI) and the context of the calling module (this).
-        var uriInfo = getURIInfo(nodeURI, this);
-        var moduleName = uriInfo.name;
+        // first we need to get all the module uri information we need to properly describe the module
+        // based on the string that gets supplied to "require()" (moduleIdentifier) and the context of the calling module (this).
+        var moduleObject = getModuleInformation(moduleIdentifier, this);
 
-        // TODO Detect & warn about cyclic dependencies here!
+        var moduleURI = moduleObject.uri;
 
-        if (!!loadedModules[moduleName]) { // If the module is already loaded and cached, return the cached version
-            console.mt_module_debug("#MT-Module: we already have the module", moduleName, "loaded, serving it now");
+        if (!!loadedModules[moduleURI]) { // If the module is already loaded and cached, return the cached version
+            console.mt_module_debug("#MT-Module: we already have the module", moduleObject.id, "loaded, serving it now");
 
         } else { // If the module has not yet been loaded, load and cache it before returning the result
-            console.mt_module_debug("#MT-Module: loading new module", uriInfo, "now");
+            console.mt_module_debug("#MT-Module: loading new module", moduleObject.id, "now");
 
-            var module = loadNewModule(uriInfo);
-            loadedModules[moduleName] = module;
+            // put the module-object without the loaded "exports" into the cache to resolve cyclic dependencies with it
+            // in case it is needed (see http://wiki.commonjs.org/wiki/Modules/1.1.1)
+            loadedModules[moduleURI] = moduleObject;
+
+            loadNewModule(moduleObject);
+
         }
 
-        console.mt_module_debug("#MT-Module: successfully loaded module", loadedModules[moduleName]);
-        return loadedModules[moduleName].exports;
+        console.mt_module_debug("#MT-Module: successfully loaded module", loadedModules[moduleURI]);
+        return loadedModules[moduleURI].exports;
     };
 
     // -----------------------------------------
@@ -197,12 +249,7 @@
 
         // loadModule (aka "require") gets normally bound to the calling modules "module"-object to access its path.
         // For the initial loadModule/require-call, we call it with a "stub"-context to remain consistent.
-        var initialRequestContext = {
-            name: null,
-            path: [],
-            URI: null
-        };
-        loadModule.call(initialRequestContext, entryScriptURI);
+        loadModule.call({path: []}, entryScriptURI);
 
         console.mt_module_debug("#MT-Module: Initial call loaded the following modules:", loadedModules);
     };

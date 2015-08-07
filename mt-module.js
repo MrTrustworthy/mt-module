@@ -47,11 +47,9 @@
         request.open("GET", fileURI, false);
         request.send(null);
 
-        // TODO maybe add some sort of retrying here? hmmmm....
-        if (request.status !== 200) {
-            console.error("#MT-Module: could not fetch", fileURI, ", result was:", request.responseText);
-            return "";
-        }
+        // TODO maybe add some sort of retrying inside node_modules or smth?!
+        if (request.status !== 200) throw new URIError("Could not fetch " + fileURI);
+
         return request.response.toString();
     };
 
@@ -115,36 +113,11 @@
         };
     };
 
-
-
-    (function(){
-        //#1
-
-        var a = getModuleInformation("./a/b/c", {path: []});
-        console.log("###A", a, "::", a.uri === "a/b/c.js");
-
-        var a2 = getModuleInformation("./a/b/c", {path: ["x"]});
-        console.log("###A", a2, "::", a2.uri === "x/a/b/c.js");
-
-        var b = getModuleInformation("../a/b/c", {path: ["x", "y", "z"]});
-        console.log("###A", b, "::", b.uri === "x/y/a/b/c.js");
-
-        var c = getModuleInformation("some/a/b/c", {path: ["x", "y", "z"]});
-        console.log("###A", c, "::", c.uri === "some/a/b/c.js");
-
-        var d = getModuleInformation("../a/b/../c", {path: ["x", "y", "z"]});
-        console.log("###A", d, "::", d.uri === "x/y/a/c.js");
-    })();
-
-
-
-
-
     /**
      * Loads a module that has not already been cached.
      * This loads the files content and evaluates it with a function constructor, passing in request and module
      *
-     * @param uriInfo - An info object containing the module name, path and uri of the module to load
+     * @param module - The "module"-object for the module to load containing id, path and URI to the module
      * @returns {{name: string, path: (Array.<string>), uri: (string), exports: {}}}
      */
     var loadNewModule = function loadNewModule(module) {
@@ -175,9 +148,9 @@
      * If a required module is already cached, it will return the cached module instead of loading it again.
      *
      * @NOTE The "this" context of this function is the "module"-object of the module that calls "require()" or,
-     *          if the module is the entry-module, a stub context with empty values
+     *          if the module is the entry-module, a stub context with empty Array for the "path"-property
      *
-     * @param moduleIdentifier: node-style identifier of the module, like "utils/helper" for "utils/helper.js"
+     * @param moduleIdentifier: node-style identifier of the module, like "./utils/helper" for "utils/helper.js"
      * @returns {Object} the given Modules "exports" object.
      */
     var loadModule = function loadModule(moduleIdentifier) {
